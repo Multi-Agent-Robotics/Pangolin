@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
-project("Pangolin")
 set(PANGOLIN_VERSION_MAJOR 0)
 set(PANGOLIN_VERSION_MINOR 8)
 set(PANGOLIN_VERSION ${PANGOLIN_VERSION_MAJOR}.${PANGOLIN_VERSION_MINOR})
+project(Pangolin
+    VERSION ${PANGOLIN_VERSION}
+    LANGUAGES CXX C
+)
 
 if(NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 17)
@@ -21,26 +24,27 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(SetPlatformVars)
 include(PangolinFactory)
 
-option( BUILD_TOOLS "Build Tools" ON )
-option( BUILD_EXAMPLES "Build Examples" ON )
-option( BUILD_ASAN "Enable AddressSanitizer for Debug builds" OFF )
+option(BUILD_TOOLS "Build Tools" ON)
+option(BUILD_EXAMPLES "Build Examples" OFF)
+option(BUILD_ASAN "Enable AddressSanitizer for Debug builds" OFF)
 
 # Default build type (Override with cmake .. -DCMAKE_BUILD_TYPE=...)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
-  message(STATUS "Setting build type to '${CMAKE_BUILD_TYPE}' as none was specified.")
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+    message(STATUS "Setting build type to '${CMAKE_BUILD_TYPE}' as none was specified.")
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
 if(_WIN_)
-    option( BUILD_SHARED_LIBS    "Build Shared Library" OFF)
-    option( MSVC_USE_STATIC_CRT  "Use static C Runtime with MSVC, /MT instead of /MD" ON)
+    option(BUILD_SHARED_LIBS "Build Shared Library" OFF)
+    option(MSVC_USE_STATIC_CRT "Use static C Runtime with MSVC, /MT instead of /MD" ON)
 
     # Make sure there are no erroneous C Runtime flags
     list(APPEND FLAG_VARS
         CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO
         CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
     )
+
     if(MSVC_USE_STATIC_CRT)
         foreach(FLAG_VAR ${FLAG_VARS})
             string(REGEX REPLACE "/MD" "/MT" NEW_FLAGS "${${FLAG_VAR}}")
@@ -53,14 +57,16 @@ if(_WIN_)
         endforeach()
     endif()
 elseif(_OSX_)
-    option( BUILD_SHARED_LIBS "Build Shared Library" ON)
+    option(BUILD_SHARED_LIBS "Build Shared Library" ON)
     set(CMAKE_MACOSX_RPATH ON)
 elseif(EMSCRIPTEN)
     set(BUILD_SHARED_LIBS OFF)
     include(EmscriptenUtils)
     set(CMAKE_EXE_LINKER_FLAGS "-sASYNCIFY=1 -sDISABLE_EXCEPTION_CATCHING=0 -sGL_ASSERTIONS=1 -sFULL_ES2=1 -sFULL_ES3=1 --bind")
 else()
-    option( BUILD_SHARED_LIBS "Build Shared Library" ON)
+    # option(BUILD_SHARED_LIBS "Build Shared Library" ON)
+    option(BUILD_SHARED_LIBS "Build Shared Library" OFF) # *.a
+
 endif()
 
 # run with "ASAN_OPTIONS=fast_unwind_on_malloc=0" to print stack with more details
@@ -83,26 +89,26 @@ if(BUILD_ASAN)
     ")
 endif()
 
-#######################################################
-## Testing setup
-
-option( BUILD_TESTS "Build Tests" OFF)
+# ######################################################
+# # Testing setup
+option(BUILD_TESTS "Build Tests" OFF)
 find_package(Catch2 2 QUIET)
+
 if(Catch2_FOUND)
     include(CTest)
     include(Catch)
 else()
     if(BUILD_TESTS)
         message(WARNING "Building Tests requested, but Catch2 library not found.")
-        set( BUILD_TESTS OFF)
+        set(BUILD_TESTS OFF)
     endif()
 endif()
 
-#######################################################
-## Add all pangolin components
-
+# ######################################################
+# # Add all pangolin components
 file(GLOB components_cmake "${CMAKE_CURRENT_LIST_DIR}/components/*/CMakeLists.txt")
 set(component_list "")
+
 foreach(component_cmake ${components_cmake})
     get_filename_component(component_dir ${component_cmake} DIRECTORY)
     get_filename_component(component_name ${component_dir} NAME)
@@ -114,28 +120,27 @@ foreach(component_cmake ${components_cmake})
     include(${component_cmake})
 endforeach()
 
-#######################################################
-## Build Tree Export
+# ######################################################
+# # Build Tree Export
 
 # Export Targets
 export(TARGETS ${component_list} FILE PangolinTargets.cmake)
 export(PACKAGE Pangolin)
 
 # Version information
-configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}ConfigVersion.cmake.in
-"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake" @ONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}ConfigVersion.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake" @ONLY)
 
 # Build tree config
-configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in
-${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake @ONLY IMMEDIATE )
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake @ONLY IMMEDIATE)
 
-
-#######################################################
-## Install headers / targets
+# ######################################################
+# # Install headers / targets
 
 # This relative path allows installed files to be relocatable.
-set( CMAKECONFIG_INSTALL_DIR lib/cmake/${PROJECT_NAME} )
-file( RELATIVE_PATH REL_INCLUDE_DIR
+set(CMAKECONFIG_INSTALL_DIR lib/cmake/${PROJECT_NAME})
+file(RELATIVE_PATH REL_INCLUDE_DIR
     "${CMAKE_INSTALL_PREFIX}/${CMAKECONFIG_INSTALL_DIR}"
     "${CMAKE_INSTALL_PREFIX}/include"
 )
@@ -151,7 +156,7 @@ install(
 
 install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-          "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
     DESTINATION ${CMAKECONFIG_INSTALL_DIR}
 )
 install(
@@ -160,19 +165,17 @@ install(
 
 # uninstall target
 if(NOT TARGET uninstall)
-  configure_file(
-    "${CMAKE_CURRENT_LIST_DIR}/cmake/cmake_uninstall.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-    IMMEDIATE @ONLY)
+    configure_file(
+        "${CMAKE_CURRENT_LIST_DIR}/cmake/cmake_uninstall.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+        IMMEDIATE @ONLY)
 
-  add_custom_target(uninstall
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+    add_custom_target(uninstall
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 endif()
 
-
-#######################################################
-## Tools / Examples
-
+# ######################################################
+# # Tools / Examples
 set(Pangolin_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
 if(BUILD_EXAMPLES)
